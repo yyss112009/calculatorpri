@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Secret Calculator – Private Photo Vault</title>
+<style>
+:root{--bg:#0e1116;--panel:#171b22;--key:#212733;--key2:#2b3342;--text:#eef1f6;--mute:#8b94a7;--acc:#f2b84b;--accfg:#1a1304;--danger:#ff6b6b;--ok:#4ade80;--r:18px;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:"Inter","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+body{background:radial-gradient(900px 500px at 50% -10%,#1d2433,var(--bg))}
+button{font:inherit;color:inherit;border:0;cursor:pointer}
+button:focus-visible,input:focus-visible,.thumb:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+[hidden]{display:none!important}
+.view{min-height:100dvh;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.calc{width:100%;max-width:400px;background:var(--panel);border-radius:28px;padding:18px;box-shadow:0 30px 70px #0009;animation:pop .35s ease}
+@keyframes pop{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+.screen{min-height:150px;padding:12px 10px 16px;display:flex;flex-direction:column;justify-content:flex-end;text-align:right;overflow:hidden}
+.lbl{font-size:.7rem;color:var(--mute);letter-spacing:.02em;margin-top:6px}
+.expr{font-size:1.25rem;color:var(--mute);min-height:1.6em;overflow-wrap:anywhere;word-break:break-all}
+.res{font-size:clamp(2.2rem,11vw,3.4rem);font-weight:600;line-height:1.1;overflow-wrap:anywhere;word-break:break-all}
+.res.err{font-size:1.4rem;color:var(--danger)}
+.keys{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.k{height:clamp(56px,10vh,72px);border-radius:var(--r);background:var(--key);font-size:1.4rem;transition:transform .08s,background .15s}
+.k:hover{background:var(--key2)}.k:active{transform:scale(.94)}
+.k.f{color:var(--acc)}.k.o{background:var(--acc);color:var(--accfg);font-weight:700}.k.o:hover{filter:brightness(1.08)}
+.k.sel{outline:2px solid #fff}
+.hint{margin:14px 0 0;color:var(--mute);font-size:.8rem;text-align:center;max-width:400px}
+.menuWrap{position:relative;display:flex;justify-content:flex-end}
+.dots{width:40px;height:40px;border-radius:12px;background:transparent;font-size:1.5rem;line-height:1;color:var(--mute)}
+.dots:hover{background:var(--key)}
+.menu{position:absolute;right:0;top:44px;z-index:6;min-width:170px;background:var(--key);border:1px solid #ffffff1a;border-radius:14px;padding:6px;box-shadow:0 14px 30px #0008;animation:pop .15s ease}
+.menu button{width:100%;text-align:left;padding:12px;border-radius:10px;background:transparent}
+.menu button:hover{background:var(--key2)}
+/* vault */
+#vault{justify-content:flex-start;align-items:stretch;padding:0}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;gap:8px;align-items:center;padding:12px 16px;background:#0e1116ee;backdrop-filter:blur(10px);border-bottom:1px solid #ffffff14}
+.bar h1{font-size:1.1rem;margin:0;flex:1;font-weight:600}
+.btn{padding:10px 14px;border-radius:12px;background:var(--key);font-size:.92rem;transition:background .15s,transform .08s}
+.btn:hover{background:var(--key2)}.btn:active{transform:scale(.96)}
+.btn.p{background:var(--acc);color:var(--accfg);font-weight:600}.btn.d{background:#3a1d22;color:#ffb3b3}
+.wrap{width:100%;max-width:1100px;margin:0 auto;padding:16px}
+.note{background:#1a2030;border:1px solid #ffffff14;border-radius:14px;padding:12px 14px;color:var(--mute);font-size:.85rem;line-height:1.5;margin-bottom:16px}
+.note b{color:var(--text)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.thumb{position:relative;aspect-ratio:1;border-radius:14px;overflow:hidden;background:var(--key);cursor:pointer;padding:0;transition:transform .15s}
+.thumb:hover{transform:scale(1.02)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.empty{text-align:center;color:var(--mute);padding:60px 16px;border:1px dashed #ffffff2a;border-radius:18px}
+.empty b{display:block;color:var(--text);font-size:1.05rem;margin-bottom:6px}
+.lb{position:fixed;inset:0;z-index:20;background:#000e;display:flex;flex-direction:column;animation:pop .2s ease}
+.lb .top,.lb .bot{display:flex;gap:8px;justify-content:space-between;align-items:center;padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top,0px))}
+.lb .bot{padding-top:12px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));justify-content:center}
+.lb .stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:0 8px}
+.lb img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px}
+.cap{color:var(--mute);font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.modal{position:fixed;inset:0;z-index:30;background:#000a;display:flex;align-items:center;justify-content:center;padding:16px}
+.card{width:100%;max-width:380px;background:var(--panel);border-radius:22px;padding:20px;animation:pop .2s ease}
+.card h2{margin:0 0 12px;font-size:1.15rem}
+.card label{display:block;font-size:.85rem;color:var(--mute);margin:10px 0 4px}
+.card input{width:100%;padding:12px;border-radius:12px;border:1px solid #ffffff22;background:var(--bg);color:var(--text);font:inherit;letter-spacing:.2em}
+.row{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.msg{min-height:1.2em;font-size:.85rem;margin-top:10px;color:var(--danger)}.msg.ok{color:var(--ok)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;background:#2a1519;color:#ffc9c9;border:1px solid #ff6b6b55;padding:10px 16px;border-radius:12px;max-width:90vw;font-size:.9rem}
+.toast.ok{background:#12261a;color:#b9f5cd;border-color:#4ade8055}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (min-width:700px){.grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}.calc{padding:22px}}
+</style>
+</head>
+<body>
+
+<main id="calcView" class="view">
+  <div class="calc">
+    <div class="menuWrap">
+      <button class="dots" id="menuBtn" type="button" aria-label="Menu" aria-haspopup="true" aria-expanded="false">⋮</button>
+      <div class="menu" id="menu" hidden role="menu"><button type="button" id="privacyItem" role="menuitem">🔐 Set privacy</button></div>
+    </div>
+    <div class="screen" aria-live="polite">
+      <div class="lbl" id="exprLbl">Expression</div>
+      <div class="expr" id="expr">&nbsp;</div>
+      <div class="lbl" id="resLbl">Result</div>
+      <div class="res" id="res">0</div>
+    </div>
+    <div class="keys" id="keys"></div>
+  </div>
+  <p class="hint">Calculator with a private photo vault. Enter your PIN and press = to open it.</p>
+</main>
+
+<section id="vault" class="view" hidden>
+  <div class="bar">
+    <h1>Private vault</h1>
+    <button class="btn" id="addBtn" type="button">＋ Add photos</button>
+    <button class="btn" id="pwBtn" type="button">Password</button>
+    <button class="btn p" id="lockBtn" type="button">🔒 Lock</button>
+  </div>
+  <div class="wrap">
+    <div class="note"><b>Privacy note:</b> Photos stay in this browser’s IndexedDB on this device. They are <b>not encrypted</b>, and a JavaScript password only hides the screen. Anyone with access to the device or browser tools can reach the stored files. Do not rely on this for sensitive images; clearing site data deletes the vault.</div>
+    <input type="file" id="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple hidden>
+    <div class="grid" id="grid"></div>
+    <div class="empty" id="empty" hidden><b>No photos yet</b>Tap “Add photos” to choose JPG, PNG or WEBP files.</div>
+  </div>
+</section>
+
+<div id="lb" class="lb" hidden role="dialog" aria-label="Photo preview">
+  <div class="top"><span class="cap" id="cap"></span><button class="btn" id="lbClose" type="button">✕ Close</button></div>
+  <div class="stage"><img id="lbImg" alt="Selected photo"></div>
+  <div class="bot"><button class="btn" id="prev" type="button">‹ Prev</button><button class="btn d" id="del" type="button">🗑 Delete</button><button class="btn" id="next" type="button">Next ›</button></div>
+</div>
+
+<div id="pwModal" class="modal" hidden>
+  <div class="card" role="dialog" aria-label="Change password">
+    <h2 id="pwTitle">Change password</h2>
+    <div id="oldBox"><label for="oldPw">Current password</label><input id="oldPw" type="password" inputmode="numeric" autocomplete="off" maxlength="8"></div>
+    <label for="newPw">New password (4–8 digits)</label><input id="newPw" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+    <label for="newPw2">Confirm new password</label><input id="newPw2" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+    <div class="msg" id="pwMsg" role="alert"></div>
+    <div class="row"><button class="btn" id="pwCancel" type="button">Cancel</button><button class="btn p" id="pwSave" type="button">Save password</button></div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+const $=s=>document.querySelector(s);
+const MAX_MB=15, TYPES=['image/jpeg','image/png','image/webp'];
+const SALT='secret-calc-v1:', DEFAULT_PIN='1109';
+
+/* ---------- storage helpers ---------- */
+function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem(k,v);return true}catch(e){return false}}
+async function hash(pw){
+  if(window.crypto&&crypto.subtle){
+    const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(SALT+pw));
+    return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
+  }
+  let h=5381;const s=SALT+pw;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return 'f'+h;
+}
+async function verify(pw){
+  const stored=lsGet('sc_pw');
+  return stored?(await hash(pw))===stored:pw===DEFAULT_PIN;
+}
+
+/* ---------- IndexedDB ---------- */
+const DB={db:null,
+  open(){return new Promise((res,rej)=>{
+    if(!window.indexedDB)return rej(new Error('IndexedDB is not available in this browser.'));
+    let r;try{r=indexedDB.open('secret-vault',1)}catch(e){return rej(e)}
+    r.onupgradeneeded=()=>r.result.createObjectStore('photos',{keyPath:'id',autoIncrement:true});
+    r.onsuccess=()=>{this.db=r.result;res()};
+    r.onerror=()=>rej(r.error||new Error('Could not open storage.'));
+    r.onblocked=()=>rej(new Error('Storage is blocked by another tab.'));
+  })},
+  run(mode,fn){return new Promise((res,rej)=>{
+    if(!this.db)return rej(new Error('Storage is not ready.'));
+    const t=this.db.transaction('photos',mode);let rq;
+    try{rq=fn(t.objectStore('photos'))}catch(e){return rej(e)}
+    t.oncomplete=()=>res(rq&&rq.result);
+    t.onerror=t.onabort=()=>rej(t.error||new Error('Storage error.'));
+  })},
+  add(p){return this.run('readwrite',s=>s.add(p))},
+  all(){return this.run('readonly',s=>s.getAll())},
+  del(id){return this.run('readwrite',s=>s.delete(id))}
+};
+
+/* ---------- toast ---------- */
+let tt;function toast(m,ok){
+  document.querySelectorAll('.toast').forEach(e=>e.remove());
+  const t=document.createElement('div');t.className='toast'+(ok?' ok':'');t.textContent=m;t.setAttribute('role','status');
+  document.body.appendChild(t);clearTimeout(tt);tt=setTimeout(()=>t.remove(),3500);
+}
+
+/* ---------- calculator ---------- */
+const KEYS=[['AC','f','ac'],['±','f','neg'],['%','f','pct'],['÷','o','op'],
+ ['7'],['8'],['9'],['×','o','op'],['4'],['5'],['6'],['−','o','op'],
+ ['1'],['2'],['3'],['+','o','op'],['⌫','f','del'],['0'],['.','','dot'],['=','o','eq']];
+const keysEl=$('#keys');
+KEYS.forEach(([t,c,a])=>{
+  const b=document.createElement('button');b.type='button';b.className='k '+(c||'');b.textContent=t;
+  b.dataset.a=a||'d';b.dataset.v=t;
+  b.setAttribute('aria-label',{'⌫':'Delete','AC':'All clear','±':'Toggle sign','÷':'Divide','×':'Multiply','−':'Subtract','+':'Add','=':'Equals','%':'Percent','.':'Decimal'}[t]||t);
+  keysEl.appendChild(b);
+});
+
+const S={cur:'0',prev:null,op:null,fresh:false,done:false,last:'',err:''};
+const num=s=>parseFloat(s);
+const clean=n=>{const r=parseFloat(n.toPrecision(12));return String(r)};
+function calc(a,b,op){
+  a=num(a);b=num(b);
+  if(op==='+')return a+b;if(op==='−')return a-b;if(op==='×')return a*b;
+  if(op==='÷'){if(b===0)throw new Error('Cannot divide by zero');return a/b}
+}
+function show(){
+  const ex=$('#expr'),rs=$('#res');
+  let e='';
+  if(S.done)e=S.last;
+  else if(S.prev!==null)e=S.prev+' '+S.op+(S.fresh?'':' '+S.cur);
+  ex.textContent=e||'\u00a0';
+  $('#exprLbl').hidden=!e;$('#resLbl').hidden=!S.done&&!S.err;
+  rs.textContent=S.err||S.cur.replace('-','−');
+  rs.className='res'+(S.err?' err':'');
+  document.querySelectorAll('.k.o[data-a=op]').forEach(b=>b.classList.toggle('sel',!S.done&&S.fresh&&b.dataset.v===S.op));
+}
+function reset(){Object.assign(S,{cur:'0',prev:null,op:null,fresh:false,done:false,last:'',err:''})}
+function startNew(){if(S.done||S.err){reset()}}
+function digit(d){
+  startNew();
+  if(S.fresh){S.cur='0';S.fresh=false}
+  if(S.cur.replace(/[-.]/g,'').length>=12)return;
+  S.cur=S.cur==='0'?d:S.cur==='-0'?'-'+d:S.cur+d;
+}
+function dot(){startNew();if(S.fresh){S.cur='0';S.fresh=false}if(!S.cur.includes('.'))S.cur+='.'}
+function del(){if(S.done||S.err||S.fresh)return;S.cur=S.cur.length>1&&S.cur!=='-0'?S.cur.slice(0,-1):'0';if(S.cur==='-')S.cur='0'}
+function neg(){if(S.err)return;if(S.cur!=='0')S.cur=S.cur[0]==='-'?S.cur.slice(1):'-'+S.cur}
+function pct(){if(S.err)return;S.cur=clean(num(S.cur)/100);if(S.done){S.done=false;S.last=''}}
+function op(o){
+  if(S.err)return;
+  if(S.done){S.done=false;S.last=''}
+  if(S.op&&!S.fresh){try{S.cur=clean(calc(S.prev,S.cur,S.op))}catch(e){return fail(e)}}
+  S.prev=S.cur;S.op=o;S.fresh=true;
+}
+function fail(e){reset();S.err=e.message}
+async function eq(){
+  if(S.err)return;
+  if(!S.op&&!S.done){
+    if(/^\d{4,8}$/.test(S.cur)){
+      let ok=false;try{ok=await verify(S.cur)}catch(e){}
+      if(ok){reset();show();openVault();return}
+    }
+    return;
+  }
+  if(!S.op||S.fresh)return;
+  try{
+    const r=clean(calc(S.prev,S.cur,S.op));
+    S.last=S.prev+' '+S.op+' '+S.cur+' =';
+    S.cur=r;S.prev=null;S.op=null;S.done=true;
+  }catch(e){fail(e)}
+}
+async function press(a,v){
+  ({d:()=>digit(v),dot,del,neg,pct,ac:reset,op:()=>op(v)}[a]||(()=>{}))();
+  if(a==='eq')await eq();
+  show();
+}
+keysEl.addEventListener('click',e=>{const b=e.target.closest('.k');if(b)press(b.dataset.a,b.dataset.v)});
+
+document.addEventListener('keydown',e=>{
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  const t=e.target;if(t&&t.tagName==='INPUT')return;
+  if(!$('#lb').hidden){
+    if(e.key==='Escape')closeLb();else if(e.key==='ArrowRight')step(1);else if(e.key==='ArrowLeft')step(-1);
+    return;
+  }
+  if(!$('#pwModal').hidden){if(e.key==='Escape')closePw();return}
+  if($('#calcView').hidden)return;
+  const k=e.key;
+  if(/^\d$/.test(k))press('d',k);
+  else if(k==='.'||k===',')press('dot');
+  else if(k==='+')press('op','+');
+  else if(k==='-')press('op','−');
+  else if(k==='*'||k==='x'||k==='X')press('op','×');
+  else if(k==='/'){e.preventDefault();press('op','÷')}
+  else if(k==='%')press('pct');
+  else if(k==='Enter'||k==='='){e.preventDefault();press('eq')}
+  else if(k==='Backspace')press('del');
+  else if(k==='Escape'||k==='Delete')press('ac');
+});
+
+/* ---------- vault ---------- */
+let photos=[],urls=new Map(),idx=-1;
+async function openVault(){
+  $('#calcView').hidden=true;$('#vault').hidden=false;window.scrollTo(0,0);
+  try{if(!DB.db)await DB.open();await refresh()}
+  catch(e){toast('Storage error: '+(e&&e.message||'could not open the vault.'));renderGrid()}
+}
+function lock(){
+  closeLb();closePw();
+  urls.forEach(u=>URL.revokeObjectURL(u));urls.clear();photos=[];$('#grid').innerHTML='';
+  $('#vault').hidden=true;$('#calcView').hidden=false;reset();show();
+}
+async function refresh(){
+  const all=await DB.all();
+  photos=(all||[]).sort((a,b)=>b.added-a.added);
+  renderGrid();
+}
+function urlFor(p){if(!urls.has(p.id))urls.set(p.id,URL.createObjectURL(p.blob));return urls.get(p.id)}
+function renderGrid(){
+  const g=$('#grid');g.innerHTML='';
+  $('#empty').hidden=photos.length>0;
+  photos.forEach((p,i)=>{
+    const b=document.createElement('button');b.type='button';b.className='thumb';b.setAttribute('aria-label','Open '+p.name);
+    const im=document.createElement('img');im.src=urlFor(p);im.alt=p.name;im.loading='lazy';
+    b.appendChild(im);b.addEventListener('click',()=>openLb(i));g.appendChild(b);
+  });
+}
+$('#addBtn').addEventListener('click',()=>$('#file').click());
+$('#file').addEventListener('change',async e=>{
+  const files=Array.from(e.target.files||[]);e.target.value='';
+  if(!files.length)return;
+  let ok=0,bad=[];
+  for(const f of files){
+    const extOk=/\.(jpe?g|png|webp)$/i.test(f.name);
+    if(!TYPES.includes(f.type)&&!extOk){bad.push(f.name+' (unsupported type)');continue}
+    if(f.size>MAX_MB*1048576){bad.push(f.name+' (over '+MAX_MB+' MB)');continue}
+    if(f.size===0){bad.push(f.name+' (empty file)');continue}
+    try{await DB.add({name:f.name,type:f.type,blob:f,added:Date.now()+ok});ok++}
+    catch(err){bad.push(f.name+' (could not save'+(err&&err.name==='QuotaExceededError'?': storage full':'')+')')}
+  }
+  try{await refresh()}catch(err){toast('Could not reload photos.')}
+  if(bad.length)toast('Skipped: '+bad.slice(0,3).join(', ')+(bad.length>3?' +'+(bad.length-3)+' more':''));
+  else if(ok)toast(ok+(ok===1?' photo added':' photos added'),true);
+});
+
+/* lightbox */
+function openLb(i){idx=i;paint();$('#lb').hidden=false;$('#lbClose').focus()}
+function paint(){const p=photos[idx];if(!p)return closeLb();$('#lbImg').src=urlFor(p);$('#lbImg').alt=p.name;$('#cap').textContent=p.name+'  ('+(idx+1)+'/'+photos.length+')';
+  $('#prev').disabled=photos.length<2;$('#next').disabled=photos.length<2}
+function step(d){if(photos.length<2)return;idx=(idx+d+photos.length)%photos.length;paint()}
+function closeLb(){$('#lb').hidden=true;$('#lbImg').removeAttribute('src');idx=-1}
+$('#lbClose').addEventListener('click',closeLb);
+$('#prev').addEventListener('click',()=>step(-1));
+$('#next').addEventListener('click',()=>step(1));
+$('#del').addEventListener('click',async()=>{
+  const p=photos[idx];if(!p)return;
+  if(!confirm('Delete this photo permanently?'))return;
+  try{
+    await DB.del(p.id);
+    const u=urls.get(p.id);if(u){URL.revokeObjectURL(u);urls.delete(p.id)}
+    photos.splice(idx,1);renderGrid();
+    if(!photos.length)closeLb();else{idx=Math.min(idx,photos.length-1);paint()}
+    toast('Photo deleted',true);
+  }catch(e){toast('Could not delete the photo.')}
+});
+let sx=null;
+$('#lb .stage').addEventListener('touchstart',e=>{sx=e.touches[0].clientX},{passive:true});
+$('#lb .stage').addEventListener('touchend',e=>{if(sx===null)return;const d=e.changedTouches[0].clientX-sx;sx=null;if(Math.abs(d)>50)step(d<0?1:-1)});
+
+/* password */
+const PW=['#oldPw','#newPw','#newPw2'];
+function hasCustom(){return !!lsGet('sc_pw')}
+function openPw(){
+  const first=!hasCustom();
+  PW.forEach(s=>$(s).value='');
+  $('#pwTitle').textContent=first?'Set privacy password':'Change password';
+  $('#oldBox').hidden=first;
+  $('#pwSave').textContent=first?'Set password':'Save password';
+  setMsg(first?'Choose 4–8 digits. Type it in the calculator and press = to open the vault.':'',first);
+  $('#pwModal').hidden=false;
+  (first?$('#newPw'):$('#oldPw')).focus();
+}
+function closePw(){$('#pwModal').hidden=true;PW.forEach(s=>$(s).value='')}
+function setMsg(t,ok){const m=$('#pwMsg');m.textContent=t;m.className='msg'+(ok?' ok':'')}
+$('#pwBtn').addEventListener('click',openPw);
+$('#pwCancel').addEventListener('click',closePw);
+$('#pwModal').addEventListener('click',e=>{if(e.target.id==='pwModal')closePw()});
+$('#pwSave').addEventListener('click',async()=>{
+  const first=!hasCustom();
+  const o=first?'':$('#oldPw').value.trim(),n=$('#newPw').value.trim(),c=$('#newPw2').value.trim();
+  if((!first&&!o)||!n||!c)return setMsg('Fill in all the fields.');
+  if(!/^\d{4,8}$/.test(n))return setMsg('New password must be 4 to 8 digits.');
+  if(!first){
+    if(!(await verify(o)))return setMsg('Current password is incorrect.');
+    if(n===o)return setMsg('New password must differ from the current one.');
+  }else if(n===DEFAULT_PIN)return setMsg('Choose a password different from the default.');
+  if(n!==c)return setMsg('New password and confirmation do not match.');
+  const h=await hash(n);
+  if(!lsSet('sc_pw',h))return setMsg('Could not save: browser storage is unavailable.');
+  setMsg(first?'Password set. Now type it in the calculator and press = to open the vault.':'Password updated.',true);
+  setTimeout(closePw,first?2200:900);
+});
+$('#lockBtn').addEventListener('click',lock);
+const mb=$('#menuBtn'),mn=$('#menu');
+mb.addEventListener('click',e=>{e.stopPropagation();mn.hidden=!mn.hidden;mb.setAttribute('aria-expanded',String(!mn.hidden))});
+document.addEventListener('click',()=>{mn.hidden=true;mb.setAttribute('aria-expanded','false')});
+$('#privacyItem').addEventListener('click',()=>{mn.hidden=true;openPw()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&!$('#vault').hidden)lock()});
+
+show();
+})();
+</script>
+</body>
+</html>
